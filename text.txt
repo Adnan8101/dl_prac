@@ -1,0 +1,351 @@
+=============================
+Experiment 1: Deep Learning Frameworks & Ethics
+=============================
+
+Theory:
+Deep learning frameworks such as TensorFlow and PyTorch have revolutionized AI 
+development by providing flexible and efficient APIs for building complex neural networks. 
+These frameworks support automatic differentiation, GPU acceleration, and extensive pre-built models. 
+Alongside technical power, ethical considerations include ensuring AI fairness, 
+avoiding bias in training data, preserving user privacy, and creating explainable models to build trust.
+
+Code (Minimal Example):
+----------------------
+# Install the frameworks (execute once in your environment)
+!pip install tensorflow torch
+
+import tensorflow as tf
+
+# Build a simple feedforward neural network with one hidden layer.
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(10,)),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer='adam',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+# Training requires appropriate dataset (X_train, y_train)
+# model.fit(X_train, y_train, epochs=10)
+
+=============================
+Experiment 2: Deep Neural Network with 2 Hidden Layers
+=============================
+
+Theory:
+Deep neural networks use multiple layers to identify complex patterns. Two hidden layers allow 
+modeling non-linear relationships, improving classification tasks such as digit recognition, speech, or image classification. 
+Proper activation functions like ReLU avoid vanishing gradients. 
+Softmax output enables multi-class prediction.
+
+Code:
+-----
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+
+# Load dataset
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Normalize and reshape
+X_train = X_train.reshape(-1, 784) / 255.0
+X_test = X_test.reshape(-1, 784) / 255.0
+
+# One-hot encode target labels
+y_train_cat = to_categorical(y_train, 10)
+y_test_cat = to_categorical(y_test, 10)
+
+# Define model architecture
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(128, activation='relu', input_shape=(784,)),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+
+# Compile model with Adam optimizer and categorical crossentropy loss
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train model
+model.fit(X_train, y_train_cat, epochs=10, batch_size=128)
+
+# Evaluate on test data
+model.evaluate(X_test, y_test_cat)
+
+
+=============================
+Experiment 3: Object Detection with TensorFlow Hub SSD
+=============================
+
+Theory:
+Object detection identifies objects in an image along with their location via bounding boxes. 
+Single Shot Detector (SSD) with MobileNet backbone balances accuracy and speed. 
+TensorFlow Hub provides pre-trained models for effortless deployment.
+
+Code:
+-----
+import tensorflow as tf
+import tensorflow_hub as hub
+import cv2
+import numpy as np
+import urllib.request
+
+# Download sample image
+urllib.request.urlretrieve('https://images.cocodataset.org/val2017/000000039769.jpg', 'testimage.jpg')
+
+# Load pre-trained SSD model from TensorFlow Hub
+detector = hub.load("https://tfhub.dev/tensorflow/ssd_mobilenet_v2/fpnlite_640x640/1")
+
+# Read and preprocess image
+img = cv2.imread('testimage.jpg')
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img_resized = cv2.resize(img_rgb, (640, 640))
+
+# Create input tensor
+input_tensor = tf.convert_to_tensor(img_resized, dtype=tf.uint8)
+input_tensor = tf.expand_dims(input_tensor, 0)
+
+# Perform detection
+detections = detector(input_tensor)
+
+print('Detections:', detections)
+
+
+=============================
+Experiment 4: Image Segmentation with DeepLabV3
+=============================
+
+Theory:
+Image segmentation assigns each pixel a class label, partitioning the image into meaningful regions. 
+DeepLabV3 leverages atrous convolutions for multiscale context, improving segmentation accuracy for tasks like scene parsing.
+
+Code:
+-----
+from transformers import MobileNetV2ImageProcessor, MobileNetV2ForSemanticSegmentation
+from PIL import Image
+import torch
+
+# Load image from local path
+img_path = 'testimagesegmentation.jpg'  # Update path accordingly
+image = Image.open(img_path).convert('RGB')
+
+# Setup processor and model
+processor = MobileNetV2ImageProcessor.from_pretrained("Matthijs/deeplabv3-mobilenet-v2")
+model = MobileNetV2ForSemanticSegmentation.from_pretrained("Matthijs/deeplabv3-mobilenet-v2")
+
+# Process inputs and infer segmentation mask
+inputs = processor(images=image, return_tensors="pt")
+outputs = model(**inputs)
+
+# Extract pixel-wise class predictions
+mask = outputs.logits.argmax(dim=1)[0].detach().cpu().numpy()
+
+print(mask)
+
+
+=============================
+Experiment 5: Autoencoder for Image Compression
+=============================
+
+Theory:
+Autoencoders compress data into a latent space to reconstruct original inputs, learning efficient representations useful for denoising, anomaly detection, and dimensionality reduction.
+
+Code:
+-----
+import tensorflow as tf
+from tensorflow.keras import layers
+
+# Load MNIST data
+(x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
+
+# Normalize and flatten images
+x_train = x_train.reshape(-1, 784) / 255.0
+x_test = x_test.reshape(-1, 784) / 255.0
+
+# Encoder network
+encoder = tf.keras.Sequential([
+    layers.Dense(64, activation='relu', input_shape=(784,)),
+    layers.Dense(32, activation='relu')
+])
+
+# Decoder network
+decoder = tf.keras.Sequential([
+    layers.Dense(64, activation='relu', input_shape=(32,)),
+    layers.Dense(784, activation='sigmoid')
+])
+
+# Assemble autoencoder
+autoencoder = tf.keras.Sequential([encoder, decoder])
+
+# Compile model with mean squared error loss
+autoencoder.compile(optimizer='adam', loss='mse')
+
+# Train on input = output task
+autoencoder.fit(x_train, x_train, epochs=10, batch_size=256, validation_data=(x_test, x_test))
+
+
+=============================
+Experiment 6: Denoising Autoencoder
+=============================
+
+Theory:
+Denoising autoencoders learn to remove noise from inputs by reconstructing clean data from corrupted versions, enhancing robustness.
+
+Code:
+-----
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers
+
+# Load MNIST data normalized
+(x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
+x_train = x_train.astype('float32') / 255.
+x_test = x_test.astype('float32') / 255.
+
+# Add noise
+noise_factor = 0.5
+x_train_noisy = x_train + noise_factor * np.random.normal(size=x_train.shape)
+x_test_noisy = x_test + noise_factor * np.random.normal(size=x_test.shape)
+x_train_noisy = np.clip(x_train_noisy, 0., 1.)
+x_test_noisy = np.clip(x_test_noisy, 0., 1.)
+
+# Expand dims for channel
+x_train = np.expand_dims(x_train, -1)
+x_test = np.expand_dims(x_test, -1)
+x_train_noisy = np.expand_dims(x_train_noisy, -1)
+x_test_noisy = np.expand_dims(x_test_noisy, -1)
+
+# Define model input
+input_img = tf.keras.Input(shape=(28, 28, 1))
+
+# Encoder
+x = layers.Flatten()(input_img)
+x = layers.Dense(128, activation='relu')(x)
+x = layers.Dense(64, activation='relu')(x)
+encoded = layers.Dense(32, activation='relu')(x)
+
+# Decoder
+x = layers.Dense(64, activation='relu')(encoded)
+x = layers.Dense(128, activation='relu')(x)
+decoded = layers.Dense(28 * 28, activation='sigmoid')(x)
+decoded = layers.Reshape((28, 28, 1))(decoded)
+
+# Autoencoder model
+autoencoder = tf.keras.Model(input_img, decoded)
+autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+
+# Train with noisy inputs and clean targets
+autoencoder.fit(x_train_noisy, x_train,
+                epochs=10, batch_size=128,
+                validation_data=(x_test_noisy, x_test))
+
+
+=============================
+Experiment 7: Variational Autoencoder (VAE)
+=============================
+
+Theory:
+Variational Autoencoders learn a probabilistic latent space, enabling generative modeling by sampling latent variables and reconstructing realistic data instances.
+
+Code:
+-----
+import tensorflow as tf
+from tensorflow.keras import layers
+
+latent_dim = 2
+
+class Sampling(layers.Layer):
+    def call(self, inputs):
+        z_mean, z_log_var = inputs
+        batch = tf.shape(z_mean)[0]
+        dim = tf.shape(z_mean)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+
+# Define encoder
+inputs = tf.keras.Input(shape=(784,))
+x = layers.Dense(256, activation="relu")(inputs)
+z_mean = layers.Dense(latent_dim)(x)
+z_log_var = layers.Dense(latent_dim)(x)
+z = Sampling()([z_mean, z_log_var])
+encoder = tf.keras.Model(inputs, [z_mean, z_log_var, z], name="encoder")
+
+# Define decoder
+latent_inputs = tf.keras.Input(shape=(latent_dim,))
+x = layers.Dense(256, activation="relu")(latent_inputs)
+outputs = layers.Dense(784, activation="sigmoid")(x)
+decoder = tf.keras.Model(latent_inputs, outputs, name="decoder")
+
+# VAE model integrating encoder and decoder with KL loss
+class VAE(tf.keras.Model):
+    def __init__(self, encoder, decoder, **kwargs):
+        super().__init__(**kwargs)
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def train_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
+        with tf.GradientTape() as tape:
+            z_mean, z_log_var, z = self.encoder(data)
+            reconstruction = self.decoder(z)
+            reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(data, reconstruction))
+            kl_loss = -0.5 * tf.reduce_mean(1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+            total_loss = reconstruction_loss + kl_loss
+        gradients = tape.gradient(total_loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {"loss": total_loss}
+
+vae = VAE(encoder, decoder)
+vae.compile(optimizer="adam")
+
+(x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
+x_train = x_train.reshape(-1, 784) / 255.0
+x_test = x_test.reshape(-1, 784) / 255.0
+
+vae.fit(x_train, epochs=10, batch_size=128)
+
+
+=============================
+Experiment 8: Convolutional Neural Network (CNN) on MNIST
+=============================
+
+Theory:
+CNNs use convolutional layers to extract spatial features hierarchically from images, followed by dense layers for classification.
+They excel in visual recognition tasks like handwritten digit classification.
+
+Code:
+-----
+import tensorflow as tf
+from tensorflow.keras import layers
+
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+# Preprocess data to add channel dimension and normalize
+x_train = x_train.reshape(-1, 28, 28, 1) / 255.0
+x_test = x_test.reshape(-1, 28, 28, 1) / 255.0
+
+# One-hot encoding of labels
+y_train_cat = tf.keras.utils.to_categorical(y_train, 10)
+y_test_cat = tf.keras.utils.to_categorical(y_test, 10)
+
+# Model architecture
+model = tf.keras.Sequential([
+    layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    layers.MaxPooling2D((2,2)),
+    layers.Conv2D(64, (3,3), activation='relu'),
+    layers.MaxPooling2D((2,2)),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(10, activation='softmax')
+])
+
+# Compile model to minimize categorical cross entropy loss
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train the model
+model.fit(x_train, y_train_cat, epochs=10, batch_size=128, validation_data=(x_test, y_test_cat))
