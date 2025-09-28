@@ -1,811 +1,664 @@
-================================================================================
-Experiment 1: Deep Learning Frameworks & Ethics
-================================================================================
+# EXP 2: write a program to implement a fully connected deep neural network with atleast 2 hidden layers for a classification application.
 
-Aim: Introduction to Deep Learning Frameworks and Ethical AI Considerations
+In this program, the classification task is on the Iris dataset.
+Specifically:
+Input features (X): 4 numeric features per flower sample
+- sepal length
+- sepal width
+- petal length
+- petal width
+Target (y): the species of iris flower
+0 → setosa
+1 → versicolor
+2 → virginica
+So the deep neural network learns to classify a flower into one of 3 species based on its measurements.
 
-Theory:
-Deep learning frameworks like TensorFlow and PyTorch provide comprehensive toolkits for neural networks with automatic differentiation, GPU acceleration, and pre-trained models. Ethical AI encompasses fairness, transparency, and privacy preservation in AI systems.
-
-Implementation:
----------------
-!pip install tensorflow torch pandas
-
-import tensorflow as tf
-import pandas as pd
+> code:
 import numpy as np
-
-# Load custom dataset (replace with your CSV file path)
-def load_custom_data(csv_path='data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        X = df.drop(columns=['target']).values  # Assumes 'target' column exists
-        y = df['target'].values
-        return X, y
-    except:
-        # Fallback: Generate synthetic data
-        X = np.random.random((1000, 10))
-        y = np.random.randint(0, 2, 1000)
-        return X, y
-
-# Load data
-X, y = load_custom_data()
-
-# Build simple neural network
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(64, activation='relu', input_shape=(X.shape[1],)),
-    tf.keras.layers.Dense(32, activation='relu'),
-    tf.keras.layers.Dense(1, activation='sigmoid')
-])
-
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-Visualization:
---------------
 import matplotlib.pyplot as plt
-
-model.summary()
-print(f"TensorFlow: {tf.__version__}")
-
-# Optional architecture plot
-try:
-    tf.keras.utils.plot_model(model, show_shapes=True)
-except:
-    print("Model visualization requires graphviz")
-
-
-================================================================================
-Experiment 2: Deep Neural Network for Multi-class Classification
-================================================================================
-
-Aim: Build Deep Neural Network with Multiple Hidden Layers for Classification
-
-Theory:
-Deep Neural Networks use multiple layers for hierarchical feature learning. ReLU activation prevents vanishing gradients, while softmax enables multi-class probability distribution.
-
-Implementation:
----------------
-import tensorflow as tf
-import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
 
-# Load custom CSV data
-def load_classification_data(csv_path='classification_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        X = df.drop(columns=['label']).values
-        y = df['label'].values
-        
-        # Encode labels if categorical
-        le = LabelEncoder()
-        y = le.fit_transform(y)
-        num_classes = len(np.unique(y))
-        
-        return X, y, num_classes
-    except:
-        # Fallback: MNIST for demonstration
-        (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
-        X = X_train.reshape(-1, 784) / 255.0
-        y = y_train
-        return X, y, 10
+# Import additional libraries
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import seaborn as sns
 
-# Load and preprocess data
-X, y, num_classes = load_classification_data()
+# Load dataset
+iris = load_iris()
+X = iris.data
+y = iris.target.reshape(-1, 1)
+
+# One-hot encode target labels
+encoder = OneHotEncoder(sparse_output=False)
+y = encoder.fit_transform(y)
 
 # Normalize features
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# One-hot encode labels
-y_train_cat = tf.keras.utils.to_categorical(y_train, num_classes)
-y_test_cat = tf.keras.utils.to_categorical(y_test, num_classes)
-
-# Build DNN model
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(128, activation='relu', input_shape=(X.shape[1],)),
-    tf.keras.layers.Dropout(0.3),
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dropout(0.3),
-    tf.keras.layers.Dense(num_classes, activation='softmax')
+# Build the model
+model = Sequential([
+    Dense(16, input_shape=(X.shape[1],), activation='relu'),
+    Dense(12, activation='relu'),
+    Dense(3, activation='softmax')  # 3 classes
 ])
 
+# Compile the model
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# Train model
-history = model.fit(X_train, y_train_cat, epochs=20, batch_size=128, 
-                   validation_split=0.2, verbose=1)
+# Train the model
+history = model.fit(X_train, y_train, validation_data=(X_test, y_test),
+                    epochs=50, batch_size=8, verbose=1)
 
-# Evaluate
-test_loss, test_acc = model.evaluate(X_test, y_test_cat, verbose=0)
-print(f"Test Accuracy: {test_acc*100:.2f}%")
+# Evaluate the model
+loss, acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test Accuracy: {acc*100:.2f}%")
 
-Visualization:
---------------
-import matplotlib.pyplot as plt
+# Predictions
+y_pred_probs = model.predict(X_test)
+y_pred = np.argmax(y_pred_probs, axis=1)
+y_true = np.argmax(y_test, axis=1)
 
-plt.figure(figsize=(12, 4))
+# Confusion matrix
+cm = confusion_matrix(y_true, y_pred)
 
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Train')
-plt.plot(history.history['val_accuracy'], label='Validation')
-plt.title('Model Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
+# Plot using seaborn heatmap
+plt.figure(figsize=(6,5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=iris.target_names,
+            yticklabels=iris.target_names)
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+
+# Plot training history
+plt.figure(figsize=(12,5))
+
+# Loss plot
+plt.subplot(1,2,1)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Model Loss")
 plt.legend()
-plt.grid(True)
 
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Train')
-plt.plot(history.history['val_loss'], label='Validation')
-plt.title('Model Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
+# Accuracy plot
+plt.subplot(1,2,2)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.title("Model Accuracy")
 plt.legend()
-plt.grid(True)
 
-plt.tight_layout()
 plt.show()
 
 
-================================================================================
-Experiment 3: Object Detection Using Pre-trained SSD MobileNetV2
-================================================================================
+--------------------------------------------------------
 
-Aim: Implement Object Detection using Pre-trained Models
 
-Theory:
-Object detection combines classification and localization. SSD performs single-shot detection with multi-scale feature maps, while MobileNetV2 provides efficient feature extraction.
+EXP 3: write a program for object detection using pre-trained model
 
-Implementation:
----------------
-import tensorflow as tf
-import tensorflow_hub as hub
-import pandas as pd
-import cv2
-import numpy as np
+The program performs object detection using a pre-trained Faster R-CNN model from torchvision. 
+The model has been trained on the COCO dataset, so it can recognize 80 common object categories like people, cars, animals, and more.
+Essentially, the code leverages a powerful deep learning detection pipeline without building any model from scratch.
+The model automatically identifies objects, localizes them with boxes, and provides classification labels—all in a single step.
+
+How it works:
+- Image preparation: The input image is converted into a tensor format suitable for the model.
+- Model inference: The pre-trained Faster R-CNN takes the image tensor and predicts bounding boxes, class labels, and confidence scores for objects it detects in the image.
+- Filtering predictions: Only objects with confidence scores above a chosen threshold are considered, to avoid clutter from low-confidence predictions.
+- Visualization: Bounding boxes and labels are drawn on the image to indicate what the model detected and how confident it is for each object.
+
+> code:
+import torch
+import torchvision
+from torchvision import transforms
 from PIL import Image
-
-# Load image paths from CSV
-def load_image_data(csv_path='image_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        image_paths = df['image_path'].tolist()
-        return image_paths
-    except:
-        # Fallback: download sample image
-        import urllib.request
-        url = 'https://images.cocodataset.org/val2017/000000039769.jpg'
-        urllib.request.urlretrieve(url, 'sample.jpg')
-        return ['sample.jpg']
-
-# Load detection model
-detector = hub.load("https://tfhub.dev/tensorflow/ssd_mobilenet_v2/fpnlite_640x640/1")
-
-# Load image paths
-image_paths = load_image_data()
-
-# Process first image
-image_path = image_paths[0]
-image = cv2.imread(image_path)
-image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-image_resized = cv2.resize(image_rgb, (640, 640))
-
-# Prepare input tensor
-input_tensor = tf.convert_to_tensor(image_resized, dtype=tf.uint8)
-input_tensor = tf.expand_dims(input_tensor, 0)
-
-# Run detection
-detections = detector(input_tensor)
-
-print(f"Detected {len(detections['detection_boxes'][0])} objects")
-
-Visualization:
---------------
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-# COCO class names (subset)
-class_names = {1: 'person', 2: 'bicycle', 3: 'car', 16: 'bird', 17: 'cat', 18: 'dog'}
-
-plt.figure(figsize=(12, 8))
-plt.imshow(image_rgb)
-ax = plt.gca()
-
-boxes = detections['detection_boxes'][0].numpy()
-classes = detections['detection_classes'][0].numpy().astype(int)
-scores = detections['detection_scores'][0].numpy()
-
-threshold = 0.3
-for i in range(len(boxes)):
-    if scores[i] > threshold:
-        ymin, xmin, ymax, xmax = boxes[i]
-        h, w = image_rgb.shape[:2]
-        left, top, right, bottom = int(xmin*w), int(ymin*h), int(xmax*w), int(ymax*h)
-        
-        rect = patches.Rectangle((left, top), right-left, bottom-top,
-                               linewidth=2, edgecolor='red', facecolor='none')
-        ax.add_patch(rect)
-        
-        class_name = class_names.get(classes[i], f'Class {classes[i]}')
-        ax.text(left, top-10, f'{class_name}: {scores[i]:.2f}',
-                color='white', fontweight='bold',
-                bbox=dict(facecolor='red', alpha=0.7))
-
-plt.title('Object Detection Results')
-plt.axis('off')
-plt.show()
-
-
-================================================================================
-Experiment 4: Semantic Segmentation with DeepLabV3
-================================================================================
-
-Aim: Perform Pixel-level Semantic Segmentation
-
-Theory:
-Semantic segmentation assigns class labels to every pixel. DeepLabV3 uses atrous convolutions for multi-scale context and ASPP for feature sampling.
-
-Implementation:
----------------
-from transformers import MobileNetV2ImageProcessor, MobileNetV2ForSemanticSegmentation
-import pandas as pd
-import torch
-from PIL import Image
-
-# Load image paths from CSV
-def load_segmentation_data(csv_path='segmentation_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        return df['image_path'].tolist()
-    except:
-        # Create sample image
-        import numpy as np
-        sample = np.random.randint(0, 255, (300, 400, 3), dtype=np.uint8)
-        return [Image.fromarray(sample)]
-
-# Load model
-processor = MobileNetV2ImageProcessor.from_pretrained("Matthijs/deeplabv3-mobilenet-v2")
-model = MobileNetV2ForSemanticSegmentation.from_pretrained("Matthijs/deeplabv3-mobilenet-v2")
-
-# Load images
-image_paths = load_segmentation_data()
-image = Image.open(image_paths[0]).convert('RGB') if isinstance(image_paths[0], str) else image_paths[0]
-
-# Process image
-inputs = processor(images=image, return_tensors="pt")
-
-with torch.no_grad():
-    outputs = model(**inputs)
-
-mask = outputs.logits.argmax(dim=1)[0].detach().cpu().numpy()
-print(f"Segmentation mask shape: {mask.shape}")
-print(f"Unique classes: {np.unique(mask)}")
-
-Visualization:
---------------
-import matplotlib.pyplot as plt
-
-# PASCAL VOC classes
-classes = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
-          'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
-          'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa',
-          'train', 'tvmonitor']
-
-plt.figure(figsize=(15, 5))
-
-plt.subplot(1, 3, 1)
-plt.imshow(image)
-plt.title('Original Image')
-plt.axis('off')
-
-plt.subplot(1, 3, 2)
-plt.imshow(mask, cmap='tab20')
-plt.title('Segmentation Mask')
-plt.axis('off')
-
-plt.subplot(1, 3, 3)
-unique_classes, counts = np.unique(mask, return_counts=True)
-class_names = [classes[i] if i < len(classes) else f'Class {i}' for i in unique_classes]
-plt.bar(range(len(unique_classes)), counts)
-plt.xticks(range(len(unique_classes)), class_names, rotation=45)
-plt.title('Class Distribution')
-plt.ylabel('Pixel Count')
-
-plt.tight_layout()
-plt.show()
-
-
-================================================================================
-Experiment 5: Autoencoder for Data Compression
-================================================================================
-
-Aim: Implement Autoencoder for Dimensionality Reduction
-
-Theory:
-Autoencoders learn compressed representations through encoder-decoder architecture. The bottleneck forces learning of essential features for reconstruction.
-
-Implementation:
----------------
-import tensorflow as tf
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import StandardScaler
-
-# Load custom data
-def load_autoencoder_data(csv_path='autoencoder_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        return df.values
-    except:
-        # Fallback: MNIST
-        (x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
-        x_train = x_train.reshape(-1, 784) / 255.0
-        x_test = x_test.reshape(-1, 784) / 255.0
-        return x_train, x_test
-
-# Load data
-try:
-    data = load_autoencoder_data()
-    if isinstance(data, tuple):
-        x_train, x_test = data
-    else:
-        from sklearn.model_selection import train_test_split
-        scaler = StandardScaler()
-        data_scaled = scaler.fit_transform(data)
-        x_train, x_test = train_test_split(data_scaled, test_size=0.2, random_state=42)
-except:
-    (x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
-    x_train = x_train.reshape(-1, 784) / 255.0
-    x_test = x_test.reshape(-1, 784) / 255.0
-
-input_dim = x_train.shape[1]
-encoding_dim = min(32, input_dim // 4)  # Adaptive encoding dimension
-
-# Build autoencoder
-encoder = tf.keras.Sequential([
-    tf.keras.layers.Dense(128, activation='relu', input_shape=(input_dim,)),
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dense(encoding_dim, activation='relu')
-])
-
-decoder = tf.keras.Sequential([
-    tf.keras.layers.Dense(64, activation='relu', input_shape=(encoding_dim,)),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(input_dim, activation='sigmoid')
-])
-
-autoencoder = tf.keras.Sequential([encoder, decoder])
-autoencoder.compile(optimizer='adam', loss='mse')
-
-# Train
-history = autoencoder.fit(x_train, x_train, epochs=50, batch_size=256,
-                         validation_data=(x_test, x_test), verbose=1)
-
-print(f"Compression ratio: {input_dim/encoding_dim:.1f}:1")
-
-Visualization:
---------------
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(12, 8))
-
-# Loss curves
-plt.subplot(2, 2, 1)
-plt.plot(history.history['loss'], label='Train Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.title('Training Loss')
-plt.xlabel('Epoch')
-plt.ylabel('MSE')
-plt.legend()
-plt.grid(True)
-
-# Reconstruction comparison
-plt.subplot(2, 2, 2)
-reconstructed = autoencoder.predict(x_test[:5])
-for i in range(5):
-    plt.subplot(2, 5, i+6)
-    if input_dim == 784:  # MNIST case
-        plt.imshow(x_test[i].reshape(28, 28), cmap='gray')
-        plt.title(f'Original {i+1}')
-        plt.axis('off')
-        
-        plt.subplot(2, 5, i+11)
-        plt.imshow(reconstructed[i].reshape(28, 28), cmap='gray')
-        plt.title(f'Reconstructed {i+1}')
-        plt.axis('off')
-
-plt.tight_layout()
-plt.show()
-
-
-================================================================================
-Experiment 6: Denoising Autoencoder
-================================================================================
-
-Aim: Build Denoising Autoencoder for Noise Removal
-
-Theory:
-Denoising autoencoders learn robust representations by training on corrupted inputs while targeting clean outputs, improving generalization.
-
-Implementation:
----------------
-import tensorflow as tf
-import pandas as pd
-import numpy as np
-
-# Load data with noise injection
-def load_noisy_data(csv_path='noisy_data.csv', noise_factor=0.3):
-    try:
-        df = pd.read_csv(csv_path)
-        clean_data = df.values
-        noisy_data = clean_data + noise_factor * np.random.normal(size=clean_data.shape)
-        noisy_data = np.clip(noisy_data, 0, 1)
-        return clean_data, noisy_data
-    except:
-        # Fallback: MNIST with synthetic noise
-        (x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
-        x_train = x_train.reshape(-1, 28, 28, 1) / 255.0
-        x_test = x_test.reshape(-1, 28, 28, 1) / 255.0
-        
-        x_train_noisy = x_train + noise_factor * np.random.normal(size=x_train.shape)
-        x_test_noisy = x_test + noise_factor * np.random.normal(size=x_test.shape)
-        
-        x_train_noisy = np.clip(x_train_noisy, 0, 1)
-        x_test_noisy = np.clip(x_test_noisy, 0, 1)
-        
-        return (x_train, x_test), (x_train_noisy, x_test_noisy)
-
-# Load data
-clean_data, noisy_data = load_noisy_data()
-
-if isinstance(clean_data, tuple):
-    x_train, x_test = clean_data
-    x_train_noisy, x_test_noisy = noisy_data
-else:
-    from sklearn.model_selection import train_test_split
-    x_train, x_test = train_test_split(clean_data, test_size=0.2, random_state=42)
-    x_train_noisy, x_test_noisy = train_test_split(noisy_data, test_size=0.2, random_state=42)
-
-# Build denoising autoencoder
-input_shape = x_train.shape[1:]
-input_img = tf.keras.Input(shape=input_shape)
-
-if len(input_shape) == 3:  # Image data
-    # Convolutional denoising autoencoder
-    encoded = tf.keras.layers.Conv2D(32, (3,3), activation='relu', padding='same')(input_img)
-    encoded = tf.keras.layers.MaxPooling2D((2,2), padding='same')(encoded)
-    encoded = tf.keras.layers.Conv2D(32, (3,3), activation='relu', padding='same')(encoded)
-    encoded = tf.keras.layers.MaxPooling2D((2,2), padding='same')(encoded)
-    
-    decoded = tf.keras.layers.Conv2D(32, (3,3), activation='relu', padding='same')(encoded)
-    decoded = tf.keras.layers.UpSampling2D((2,2))(decoded)
-    decoded = tf.keras.layers.Conv2D(32, (3,3), activation='relu', padding='same')(decoded)
-    decoded = tf.keras.layers.UpSampling2D((2,2))(decoded)
-    decoded = tf.keras.layers.Conv2D(1, (3,3), activation='sigmoid', padding='same')(decoded)
-else:  # Tabular data
-    # Dense denoising autoencoder
-    encoded = tf.keras.layers.Dense(128, activation='relu')(input_img)
-    encoded = tf.keras.layers.Dense(64, activation='relu')(encoded)
-    encoded = tf.keras.layers.Dense(32, activation='relu')(encoded)
-    
-    decoded = tf.keras.layers.Dense(64, activation='relu')(encoded)
-    decoded = tf.keras.layers.Dense(128, activation='relu')(decoded)
-    decoded = tf.keras.layers.Dense(input_shape[0], activation='sigmoid')(decoded)
-
-denoising_autoencoder = tf.keras.Model(input_img, decoded)
-denoising_autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
-
-# Train
-history = denoising_autoencoder.fit(
-    x_train_noisy, x_train,
-    epochs=30, batch_size=128,
-    validation_data=(x_test_noisy, x_test),
-    verbose=1
-)
-
-Visualization:
---------------
-import matplotlib.pyplot as plt
-
-# Training history
-plt.figure(figsize=(15, 5))
-
-plt.subplot(1, 3, 1)
-plt.plot(history.history['loss'], label='Train Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.title('Denoising Training')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.grid(True)
-
-# Denoising results
-denoised = denoising_autoencoder.predict(x_test_noisy[:5])
-
-if len(input_shape) == 3:  # Image visualization
-    for i in range(5):
-        plt.subplot(3, 5, i+1)
-        plt.imshow(x_test[i].squeeze(), cmap='gray')
-        plt.title(f'Clean {i+1}')
-        plt.axis('off')
-        
-        plt.subplot(3, 5, i+6)
-        plt.imshow(x_test_noisy[i].squeeze(), cmap='gray')
-        plt.title(f'Noisy {i+1}')
-        plt.axis('off')
-        
-        plt.subplot(3, 5, i+11)
-        plt.imshow(denoised[i].squeeze(), cmap='gray')
-        plt.title(f'Denoised {i+1}')
-        plt.axis('off')
-
-plt.tight_layout()
-plt.show()
-
-
-================================================================================
-Experiment 7: Variational Autoencoder (VAE)
-================================================================================
-
-Aim: Implement VAE for Generative Modeling
-
-Theory:
-VAEs learn probabilistic latent representations using reparameterization trick. They enable data generation through latent space sampling with KL divergence regularization.
-
-Implementation:
----------------
-import tensorflow as tf
-import pandas as pd
-import numpy as np
-
-# Load data
-def load_vae_data(csv_path='vae_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        data = df.values
-        from sklearn.preprocessing import MinMaxScaler
-        scaler = MinMaxScaler()
-        return scaler.fit_transform(data)
-    except:
-        (x_train, _), (x_test, _) = tf.keras.datasets.mnist.load_data()
-        x_train = x_train.reshape(-1, 784) / 255.0
-        return x_train
-
-x_train = load_vae_data()
-input_dim = x_train.shape[1]
-latent_dim = 2
-
-# Sampling layer
-class Sampling(tf.keras.layers.Layer):
-    def call(self, inputs):
-        z_mean, z_log_var = inputs
-        batch = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
-
-# Encoder
-encoder_inputs = tf.keras.Input(shape=(input_dim,))
-x = tf.keras.layers.Dense(256, activation='relu')(encoder_inputs)
-x = tf.keras.layers.Dense(128, activation='relu')(x)
-z_mean = tf.keras.layers.Dense(latent_dim)(x)
-z_log_var = tf.keras.layers.Dense(latent_dim)(x)
-z = Sampling()([z_mean, z_log_var])
-encoder = tf.keras.Model(encoder_inputs, [z_mean, z_log_var, z])
-
-# Decoder
-latent_inputs = tf.keras.Input(shape=(latent_dim,))
-x = tf.keras.layers.Dense(128, activation='relu')(latent_inputs)
-x = tf.keras.layers.Dense(256, activation='relu')(x)
-decoder_outputs = tf.keras.layers.Dense(input_dim, activation='sigmoid')(x)
-decoder = tf.keras.Model(latent_inputs, decoder_outputs)
-
-# VAE class
-class VAE(tf.keras.Model):
-    def __init__(self, encoder, decoder, **kwargs):
-        super().__init__(**kwargs)
-        self.encoder = encoder
-        self.decoder = decoder
-        
-    def train_step(self, data):
-        with tf.GradientTape() as tape:
-            z_mean, z_log_var, z = self.encoder(data)
-            reconstruction = self.decoder(z)
-            
-            reconstruction_loss = tf.reduce_mean(
-                tf.keras.losses.binary_crossentropy(data, reconstruction)
-            )
-            kl_loss = -0.5 * tf.reduce_mean(
-                1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
-            )
-            total_loss = reconstruction_loss + kl_loss
-            
-        grads = tape.gradient(total_loss, self.trainable_weights)
-        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        return {"loss": total_loss, "reconstruction_loss": reconstruction_loss, "kl_loss": kl_loss}
-
-# Train VAE
-vae = VAE(encoder, decoder)
-vae.compile(optimizer='adam')
-history = vae.fit(x_train, epochs=50, batch_size=128)
-
-Visualization:
---------------
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(12, 4))
-
-# Latent space
-plt.subplot(1, 3, 1)
-z_mean, _, _ = encoder.predict(x_train[:1000])
-plt.scatter(z_mean[:, 0], z_mean[:, 1], alpha=0.6)
-plt.title('Latent Space')
-plt.xlabel('Latent Dim 1')
-plt.ylabel('Latent Dim 2')
-
-# Generated samples
-plt.subplot(1, 3, 2)
-n = 15
-figure = np.zeros((28 * n, 28 * n))
-grid_x = np.linspace(-3, 3, n)
-grid_y = np.linspace(-3, 3, n)
-
-if input_dim == 784:  # MNIST case
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
-            z_sample = np.array([[xi, yi]])
-            x_decoded = decoder.predict(z_sample)
-            digit = x_decoded[0].reshape(28, 28)
-            figure[i * 28: (i + 1) * 28, j * 28: (j + 1) * 28] = digit
-    
-    plt.imshow(figure, cmap='Greys_r')
-    plt.title('Generated Samples')
-    plt.axis('off')
-
-plt.tight_layout()
-plt.show()
-
-
-================================================================================
-Experiment 8: CNN for Image Classification
-================================================================================
-
-Aim: Implement CNN for Image Classification
-
-Theory:
-CNNs use convolutional layers for spatial feature extraction, pooling for dimensionality reduction, and fully connected layers for classification. They excel in image recognition tasks.
-
-Implementation:
----------------
-import tensorflow as tf
-import pandas as pd
-import numpy as np
-from sklearn.metrics import classification_report
-
-# Load image data
-def load_cnn_data(csv_path='cnn_data.csv'):
-    try:
-        df = pd.read_csv(csv_path)
-        # Assumes CSV has image_path and label columns
-        images = []
-        labels = []
-        for _, row in df.iterrows():
-            img = tf.keras.preprocessing.image.load_img(row['image_path'], target_size=(28, 28))
-            img_array = tf.keras.preprocessing.image.img_to_array(img)
-            images.append(img_array)
-            labels.append(row['label'])
-        
-        X = np.array(images) / 255.0
-        y = np.array(labels)
-        return X, y
-    except:
-        # Fallback: MNIST
-        (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
-        x_train = x_train.reshape(-1, 28, 28, 1) / 255.0
-        x_test = x_test.reshape(-1, 28, 28, 1) / 255.0
-        return (x_train, y_train), (x_test, y_test)
-
-# Load data
-data = load_cnn_data()
-if isinstance(data[0], tuple):
-    (x_train, y_train), (x_test, y_test) = data
-else:
-    X, y = data
-    from sklearn.model_selection import train_test_split
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-num_classes = len(np.unique(y_train))
-y_train_cat = tf.keras.utils.to_categorical(y_train, num_classes)
-y_test_cat = tf.keras.utils.to_categorical(y_test, num_classes)
-
-# Build CNN
-model = tf.keras.Sequential([
-    tf.keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=x_train.shape[1:]),
-    tf.keras.layers.MaxPooling2D((2,2)),
-    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
-    tf.keras.layers.MaxPooling2D((2,2)),
-    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dropout(0.5),
-    tf.keras.layers.Dense(num_classes, activation='softmax')
-])
-
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-# Train with callbacks
-callbacks = [
-    tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True),
-    tf.keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=3)
+# Load a pre-trained Faster R-CNN model
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model.eval()
+
+# COCO class labels
+COCO_INSTANCE_CATEGORY_NAMES = [
+    '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+    'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign',
+    'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag',
+    'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite',
+    'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+    'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana',
+    'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza',
+    'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table',
+    'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+    'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock',
+    'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
 
-history = model.fit(x_train, y_train_cat, epochs=25, batch_size=128,
-                   validation_split=0.2, callbacks=callbacks, verbose=1)
+# Transform for input image
+transform = transforms.Compose([
+    transforms.ToTensor()
+])
 
-# Evaluate
-test_loss, test_acc = model.evaluate(x_test, y_test_cat, verbose=0)
-print(f"Test Accuracy: {test_acc*100:.2f}%")
+# Load your test image (replace with your path)
+image_path = "image_path.jpg"   # put your image path here
+img = Image.open(image_path).convert("RGB")
+img_tensor = transform(img)
+img_tensor = img_tensor.unsqueeze(0)  # add batch dimension
 
-Visualization:
---------------
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
+# Run object detection
+with torch.no_grad():
+    predictions = model(img_tensor)
 
-plt.figure(figsize=(15, 10))
+# Get boxes, labels, scores
+boxes = predictions[0]['boxes']
+labels = predictions[0]['labels']
+scores = predictions[0]['scores']
 
-# Training history
-plt.subplot(2, 3, 1)
-plt.plot(history.history['accuracy'], label='Train')
-plt.plot(history.history['val_accuracy'], label='Validation')
-plt.title('Model Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.grid(True)
+# Plot results
+fig, ax = plt.subplots(1, figsize=(12,9))
+ax.imshow(img)
 
-plt.subplot(2, 3, 2)
-plt.plot(history.history['loss'], label='Train')
-plt.plot(history.history['val_loss'], label='Validation')
-plt.title('Model Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.grid(True)
+# Draw only boxes above a threshold
+threshold = 0.7
+for i, box in enumerate(boxes):
+    if scores[i] >= threshold:
+        x1, y1, x2, y2 = box
+        rect = patches.Rectangle((x1, y1), x2-x1, y2-y1,
+                                 linewidth=2, edgecolor='r', facecolor='none')
+        ax.add_patch(rect)
+        # Check if the label index is within the valid range
+        if labels[i] < len(COCO_INSTANCE_CATEGORY_NAMES):
+            label = f"{COCO_INSTANCE_CATEGORY_NAMES[labels[i]]}: {scores[i]:.2f}"
+            ax.text(x1, y1, label, fontsize=10, color='white',
+                    bbox=dict(facecolor='red', alpha=0.5))
+        else:
+            # Handle cases where the label index is out of range (optional)
+            print(f"Warning: Predicted label index {labels[i]} is out of range.")
 
-# Confusion matrix
-y_pred = model.predict(x_test)
-y_pred_classes = np.argmax(y_pred, axis=1)
 
-plt.subplot(2, 3, 3)
-cm = confusion_matrix(y_test, y_pred_classes)
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-plt.title('Confusion Matrix')
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
-
-# Sample predictions
-plt.subplot(2, 3, 4)
-sample_indices = np.random.choice(len(x_test), 6)
-fig, axes = plt.subplots(2, 3, figsize=(8, 6))
-for i, idx in enumerate(sample_indices):
-    ax = axes[i//3, i%3]
-    ax.imshow(x_test[idx].squeeze(), cmap='gray')
-    pred_class = y_pred_classes[idx]
-    true_class = y_test[idx]
-    confidence = np.max(y_pred[idx])
-    color = 'green' if pred_class == true_class else 'red'
-    ax.set_title(f'T:{true_class} P:{pred_class}\nConf:{confidence:.3f}', color=color)
-    ax.axis('off')
-
-plt.tight_layout()
+plt.axis("off")
 plt.show()
 
-# Classification report
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred_classes))
+
+---------------------------------------------
+
+EXP 4: write a program for image segmentation using pre-trained model.
+
+
+Image segmentation is the process of partitioning an image into meaningful regions or segments, usually at the pixel level. Unlike classification, which assigns a single label to the whole image, segmentation assigns a label to each pixel, effectively identifying object boundaries and separating foreground from background.
+
+Uses DeepLabV3 + ResNet50 backbone pre-trained on Pascal VOC dataset.
+Each pixel is classified into one of the pre-defined object classes.
+A color map is applied to visualize different object regions.
+Works without training from scratch—just loads a pre-trained model and applies it to a new image.
+
+> code:
+
+import torch
+import torchvision
+from torchvision import transforms
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load pre-trained DeepLabV3 model
+model = torchvision.models.segmentation.deeplabv3_resnet50(pretrained=True)
+model.eval()
+
+# Define transform to convert image to tensor
+transform = transforms.Compose([
+    transforms.ToTensor(),
+])
+
+# Load image
+image_path = "img.jpg"  # Replace with your image path
+img = Image.open(image_path).convert("RGB")
+img_tensor = transform(img).unsqueeze(0)  # Add batch dimension
+
+# Run segmentation
+with torch.no_grad():
+    output = model(img_tensor)['out'][0]  # output shape: [num_classes, H, W]
+
+# Get predicted class per pixel
+pred = torch.argmax(output, dim=0).byte().cpu().numpy()
+
+# Create a color map for visualization
+num_classes = 21  # DeepLabV3 trained on 21 classes (VOC)
+colors = np.random.randint(0, 255, size=(num_classes, 3), dtype=np.uint8)
+seg_image = colors[pred]
+
+# Display original image and segmentation
+fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,6))
+ax1.imshow(img)
+ax1.set_title("Original Image")
+ax1.axis("off")
+
+ax2.imshow(seg_image)
+ax2.set_title("Segmented Image")
+ax2.axis("off")
+
+plt.show()
+
+
+
+-----------------------
+
+
+EXP 5: Write a program to implement the autoencoder model for image compression
+
+An autoencoder is a type of neural network designed to learn efficient representations of data, often for the purpose of dimensionality reduction or compression.
+It consists of two main parts:
+1. Encoder: Compresses the input data into a smaller latent representation (also called the bottleneck).
+2. Decoder: Reconstructs the original data from the compressed latent representation.
+The network is trained to minimize the difference between the input and the reconstructed output, usually using losses like Mean Squared Error (MSE) or Binary Cross-Entropy.
+
+Autoencoder Architecture:
+Encoder: Compresses input (28×28 pixels → 64-dimensional latent vector).
+Decoder: Reconstructs the image from the compressed latent vector.
+Training: The model tries to reconstruct its input and minimizes reconstruction loss.
+Compression: The encoding_dim=64 acts as the compressed representation—much smaller than the original 784 pixels.
+Visualization: We can compare original vs. reconstructed images to see how much information is preserved.
+
+> code:
+# Import libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.layers import Input, Dense, Flatten, Reshape
+from tensorflow.keras.datasets import mnist
+
+# Load MNIST dataset
+(x_train, _), (x_test, _) = mnist.load_data()
+x_train = x_train.astype('float32') / 255.
+x_test  = x_test.astype('float32') / 255.
+
+# Flatten images for fully connected autoencoder
+x_train_flat = x_train.reshape((len(x_train), 28*28))
+x_test_flat  = x_test.reshape((len(x_test), 28*28))
+
+# Define Autoencoder
+input_dim = 28*28
+encoding_dim = 64  # Compressed representation size
+
+# Encoder
+input_img = Input(shape=(input_dim,))
+encoded = Dense(128, activation='relu')(input_img)
+encoded = Dense(encoding_dim, activation='relu')(encoded)
+
+# Decoder
+decoded = Dense(128, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='sigmoid')(decoded)
+
+# Autoencoder Model
+autoencoder = Model(input_img, decoded)
+
+# Compile the model
+autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+
+# Train the model
+history = autoencoder.fit(x_train_flat, x_train_flat,
+                          epochs=50,
+                          batch_size=256,
+                          shuffle=True,
+                          validation_data=(x_test_flat, x_test_flat))
+
+# Evaluate reconstruction
+decoded_imgs = autoencoder.predict(x_test_flat)
+
+# Plot original and reconstructed images
+n = 10  # number of images to display
+plt.figure(figsize=(20,4))
+for i in range(n):
+    # Original
+    ax = plt.subplot(2, n, i+1)
+    plt.imshow(x_test_flat[i].reshape(28,28), cmap='gray')
+    plt.axis('off')
+    
+    # Reconstructed
+    ax = plt.subplot(2, n, i+n+1)
+    plt.imshow(decoded_imgs[i].reshape(28,28), cmap='gray')
+    plt.axis('off')
+plt.show()
+
+# Plot training loss
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Autoencoder Training Loss")
+plt.legend()
+plt.show()
+
+
+--------------------------
+
+EXP 6: write a program to implement the autoencoder model for image denoising
+
+An autoencoder is a type of neural network designed to learn efficient representations of data, often for the purpose of dimensionality reduction or compression.
+It consists of two main parts:
+1. Encoder: Compresses the input data into a smaller latent representation (also called the bottleneck).
+2. Decoder: Reconstructs the original data from the compressed latent representation.
+The network is trained to minimize the difference between the input and the reconstructed output, usually using losses like Mean Squared Error (MSE) or Binary Cross-Entropy.
+
+Noise Injection: Random Gaussian noise is added to input images to create noisy versions.
+Autoencoder Architecture:
+- Encoder: Compresses noisy images into a smaller latent representation.
+- Decoder: Reconstructs clean images from the latent vector.
+Training Objective: Minimize the difference between the reconstructed images and the original clean images.
+Result: After training, the autoencoder can remove noise from new images, effectively performing image denoising.
+
+> code:
+# Import libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.layers import Input, Dense, Flatten, Reshape
+from tensorflow.keras.datasets import mnist
+
+# Load MNIST dataset
+(x_train, _), (x_test, _) = mnist.load_data()
+x_train = x_train.astype('float32') / 255.
+x_test  = x_test.astype('float32') / 255.
+
+# Flatten images for fully connected autoencoder
+x_train_flat = x_train.reshape((len(x_train), 28*28))
+x_test_flat  = x_test.reshape((len(x_test), 28*28))
+
+# Define Autoencoder
+input_dim = 28*28
+encoding_dim = 64  # Compressed representation size
+
+# Encoder
+input_img = Input(shape=(input_dim,))
+encoded = Dense(128, activation='relu')(input_img)
+encoded = Dense(encoding_dim, activation='relu')(encoded)
+
+# Decoder
+decoded = Dense(128, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='sigmoid')(decoded)
+
+# Autoencoder Model
+autoencoder = Model(input_img, decoded)
+
+# Compile the model
+autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+
+# Train the model
+history = autoencoder.fit(x_train_flat, x_train_flat,
+                          epochs=50,
+                          batch_size=256,
+                          shuffle=True,
+                          validation_data=(x_test_flat, x_test_flat))
+
+# Evaluate reconstruction
+decoded_imgs = autoencoder.predict(x_test_flat)
+
+# Plot original and reconstructed images
+n = 10  # number of images to display
+plt.figure(figsize=(20,4))
+for i in range(n):
+    # Original
+    ax = plt.subplot(2, n, i+1)
+    plt.imshow(x_test_flat[i].reshape(28,28), cmap='gray')
+    plt.axis('off')
+    
+    # Reconstructed
+    ax = plt.subplot(2, n, i+n+1)
+    plt.imshow(decoded_imgs[i].reshape(28,28), cmap='gray')
+    plt.axis('off')
+plt.show()
+
+# Plot training loss
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Autoencoder Training Loss")
+plt.legend()
+plt.show()
+
+
+
+
+------------------------
+
+
+EXP 7: Develop a RNN based model for sentiment analysis and apply it to a test dataset
+
+Sentiment in text depends on word order and context. Example: “not good” vs “good” → same words, opposite meaning.
+Traditional models (like Bag-of-Words) ignore sequence information.
+Recurrent Neural Networks (RNNs) are designed for sequential data, processing words one by one while maintaining a hidden state that captures past information.
+
+Dataset:
+IMDB dataset contains 25,000 movie reviews labeled positive/negative.
+Reviews are sequences of word indices (words are mapped to integers).
+
+Preprocessing:
+Pad sequences so all reviews have the same length (max_len=200).
+
+RNN Model:
+Embedding layer: Converts word indices into dense vectors.
+SimpleRNN layer: Processes sequential information in the review to capture context.
+Dense output layer: Single neuron with sigmoid activation for binary classification.
+
+Training:
+Model learns to predict sentiment from sequences of words using binary cross-entropy loss.
+
+Evaluation & Prediction:
+Test set accuracy is computed.
+Individual predictions can be made for new reviews.
+
+> code:
+# Import libraries
+import tensorflow as tf
+from tensorflow.keras.datasets import imdb
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, SimpleRNN, Dense
+import matplotlib.pyplot as plt
+
+# Parameters
+vocab_size = 10000  # Top 10,000 words
+max_len = 200       # Max sequence length
+embedding_dim = 32
+
+# Load dataset
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=vocab_size)
+
+# Pad sequences to ensure uniform length
+x_train = pad_sequences(x_train, maxlen=max_len)
+x_test  = pad_sequences(x_test,  maxlen=max_len)
+
+# Build RNN model
+model = Sequential([
+    Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_len),
+    SimpleRNN(64, activation='tanh'),
+    Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the model
+history = model.fit(x_train, y_train,
+                    epochs=5,
+                    batch_size=64,
+                    validation_split=0.2)
+
+# Evaluate on test dataset
+loss, acc = model.evaluate(x_test, y_test)
+print(f"Test Accuracy: {acc*100:.2f}%")
+
+# Plot training history
+plt.figure(figsize=(12,5))
+plt.subplot(1,2,1)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Loss History")
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.title("Accuracy History")
+plt.legend()
+plt.show()
+
+# Get IMDB word index
+word_index = imdb.get_word_index()
+reverse_word_index = {value: key for key, value in word_index.items()}
+
+def decode_review(encoded_review):
+    # Map indices back to words (offset by 3 for special tokens in Keras IMDB)
+    return ' '.join([reverse_word_index.get(i - 3, "?") for i in encoded_review if i >= 3])
+
+# Example prediction
+sample_review = x_test[0] 
+
+# Example prediction
+sample_text = x_test[0].reshape(1, -1)  # first test sample
+pred = model.predict(sample_text)
+print("Review text:\n", decode_review(x_test[0]))
+print("Predicted Sentiment:", "Positive" if pred[0][0]>0.5 else "Negative")
+print("Actual Sentiment:", "Positive" if y_test[0]==1 else "Negative")
+
+
+----------------------------
+
+
+EXP 8: design and implement a CNN model model for digit recognition application
+
+CNNs are designed for image data. They capture local patterns (edges, corners, shapes) with convolutional filters.
+Pooling layers reduce dimensionality, keeping important features.
+
+Architecture Explained:
+Conv2D layers: Learn features like strokes and curves of digits.
+MaxPooling: Downsamples while keeping key information.
+Dense layers: Perform classification based on extracted features.
+Softmax output: Gives probability distribution across 10 digit classes.
+
+How It Works:
+Input Representation
+The MNIST dataset provides 28×28 grayscale images of handwritten digits.
+Each image is normalized (scaled between 0 and 1) and reshaped to fit CNN’s expected format (height, width, channels).
+
+Feature Extraction (Convolution + Pooling)
+Convolutional layers apply small filters (e.g., 3×3) across the image.
+Early filters learn low-level features like edges, lines, and curves.
+Deeper filters learn high-level patterns like loops or digit-specific shapes.
+
+Pooling layers (max pooling) downsample the image representation.
+This makes the model more efficient and less sensitive to small distortions (like a digit written slightly shifted).
+
+Flattening & Fully Connected Layers
+After feature extraction, the output feature maps are flattened into a 1D vector.
+This vector is passed to dense layers, which combine the extracted features to make a decision.
+A Dropout layer is used to prevent overfitting by randomly ignoring some neurons during training.
+
+Classification Layer (Softmax)
+The final layer has 10 output neurons (one for each digit 0–9).
+The softmax function converts outputs into probabilities.
+Example: Input image → output [0.01, 0.02, ..., 0.90, ...] → model predicts digit “7”.
+
+Training Process
+The model is trained using categorical cross-entropy loss.
+The Adam optimizer adjusts the filter weights and neuron connections.
+Training happens in epochs, gradually reducing loss and improving accuracy.
+
+> code:
+# Import libraries
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+
+# Load MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+# Normalize and reshape
+x_train = x_train.astype('float32') / 255.0
+x_test  = x_test.astype('float32') / 255.0
+x_train = x_train.reshape(-1, 28, 28, 1)  # (samples, height, width, channels)
+x_test  = x_test.reshape(-1, 28, 28, 1)
+
+# One-hot encode labels
+y_train = to_categorical(y_train, 10)
+y_test  = to_categorical(y_test, 10)
+
+# Build CNN model
+model = Sequential([
+    Conv2D(32, kernel_size=(3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D(pool_size=(2,2)),
+    Conv2D(64, kernel_size=(3,3), activation='relu'),
+    MaxPooling2D(pool_size=(2,2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(10, activation='softmax')   # 10 classes (digits 0–9)
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+history = model.fit(x_train, y_train, epochs=5, batch_size=128,
+                    validation_data=(x_test, y_test))
+
+# Evaluate on test data
+loss, acc = model.evaluate(x_test, y_test, verbose=0)
+print(f"Test Accuracy: {acc*100:.2f}%")
+
+# Plot accuracy and loss
+plt.figure(figsize=(12,5))
+
+plt.subplot(1,2,1)
+plt.plot(history.history['accuracy'], label="Train Acc")
+plt.plot(history.history['val_accuracy'], label="Val Acc")
+plt.title("Model Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(history.history['loss'], label="Train Loss")
+plt.plot(history.history['val_loss'], label="Val Loss")
+plt.title("Model Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend()
+
+plt.show()
+
+# Test prediction on a sample
+import numpy as np
+sample = x_test[0].reshape(1,28,28,1)
+pred = model.predict(sample)
+print("Predicted Digit:", np.argmax(pred))
+
+# Show the actual image
+plt.imshow(x_test[0].reshape(28,28), cmap="gray")
+plt.title(f"Actual Digit: {np.argmax(y_test[0])}")
+plt.axis("off")
+plt.show()
+
